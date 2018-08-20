@@ -2,8 +2,7 @@
 using System.ComponentModel;
 using System.Data;
 using System.Globalization;
-using Carubbi.Utils.Data;
-using System.Collections.Generic;
+
 namespace Carubbi.DAL
 {
     /// <summary>
@@ -23,35 +22,29 @@ namespace Carubbi.DAL
         public static T Reflect<T>(IDataReader dr)
         {
 
-            T obj = Activator.CreateInstance<T>();
+            var obj = Activator.CreateInstance<T>();
             var properties = typeof(T).GetProperties();
 
             foreach (var item in properties)
             {
-                string parameterName = string.Concat(DataBaseConventions.OutputFieldnamePrefix, item.Name);
+                var parameterName = string.Concat(DataBaseConventions.OutputFieldnamePrefix, item.Name);
                 try
                 {
                     object value = null;
-                    TypeConverter converter = TypeDescriptor.GetConverter(item.PropertyType);
-                    if (converter.CanConvertFrom(typeof(string)))
-                    {
-                        value = converter.ConvertFromString(null, new CultureInfo("pt-BR"), dr[parameterName].ToString());
-                    }
-                    else
-                    {
-                        value = dr[parameterName].ToString();
-                    }
+                    var converter = TypeDescriptor.GetConverter(item.PropertyType);
+                    value = converter.CanConvertFrom(typeof(string))
+                        ? converter.ConvertFromString(null, new CultureInfo("pt-BR"), dr[parameterName].ToString())
+                        : dr[parameterName].ToString();
                     
                     item.SetValue(obj, value, null);
                 }
                 catch (Exception)
                 {
-                    
+                    // ignored
                 }
             }
 
             return obj;
-
         }
 
 
@@ -110,7 +103,6 @@ namespace Carubbi.DAL
                 }
             }
         }*/
-
     }
 }
 

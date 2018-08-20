@@ -1,13 +1,11 @@
-﻿using System;
+﻿using Carubbi.DAL.Interfaces;
+using Carubbi.ServiceLocator;
+using System;
 using System.Collections.Generic;
-using System.Configuration;
 using System.Data;
 using System.Data.Common;
-using System.Linq;
-using Carubbi.Utils.Persistence;
 using System.Data.SqlTypes;
-using Carubbi.DAL.Interfaces;
-using Carubbi.Utils.IoC;
+using System.Linq;
 
 namespace Carubbi.DAL
 {
@@ -40,15 +38,13 @@ namespace Carubbi.DAL
 
         }
 
+        /// <inheritdoc />
         /// <summary>
         /// Getter e Setter do objeto UnitOfWork, quando não definido o escopo da transação corrente acaba logo após a execução do comando efetuado por esta classe
         /// </summary>
         public UnitOfWork UnitOfWork
         {
-            get
-            {
-                return _unitOfWork;
-            }
+            get => _unitOfWork;
             set
             {
                 _escopoLocal = value == null;
@@ -57,7 +53,7 @@ namespace Carubbi.DAL
             
         }
 
-        UnitOfWork _unitOfWork;
+        private UnitOfWork _unitOfWork;
 
         /// <summary>
         /// Constrói uma DAO informando um método de conversão da linha da tabela para entidade customizado e um gerenciador de transações UnitOfWork
@@ -109,20 +105,23 @@ namespace Carubbi.DAL
         /// </summary>
         /// <param name="entity">Entidade a ser pesquisada</param>
         /// <returns>Dicionario de Campos chave contendo o nome do campo e o valor da instância</returns>
-        protected Dictionary<string, Object> ObterCamposChave(T entity)
+        protected Dictionary<string, object> ObterCamposChave(T entity)
         {
-            Type entityType = typeof(T);
+            var entityType = typeof(T);
 
-            var propriedadesChave = entityType.GetProperties().Where(p => p.GetCustomAttributes(typeof(CampoChaveAttribute), true).Count() > 0);
-            var props = new Dictionary<string, Object>();
-            if (propriedadesChave.Count() > 0)
+            var propriedadesChave = entityType.GetProperties().Where(p => p.GetCustomAttributes(typeof(CampoChaveAttribute), true).Any());
+            var props = new Dictionary<string, object>();
+            var propertyInfos = propriedadesChave.ToList();
+            var any = propertyInfos.Any();
+
+            if (any)
             {
-                foreach (var item in propriedadesChave)
+                foreach (var item in propertyInfos)
                 {
                     props.Add(item.Name, item.GetValue(entity, null));
                 }
             }
-            else if (entityType.GetProperties().Where(p => p.Name == "Id").Count() > 0)
+            else if (entityType.GetProperties().Any(p => p.Name == "Id"))
             {
                 props.Add("Id", entityType.GetProperties().Single(p => p.Name == "Id").GetValue(entity, null));
             }
@@ -160,7 +159,7 @@ namespace Carubbi.DAL
         /// <returns>Coleção de objetos da entidade corrente</returns>
         protected IEnumerable<T> ExecuteReader(string procedureName, Func<IDataReader, T> handler)
         {
-            return ExecuteReader(procedureName, dr => handler(dr), new { });
+            return ExecuteReader(procedureName, handler, new { });
         }
 
         /// <summary>
@@ -168,11 +167,11 @@ namespace Carubbi.DAL
         /// </summary>
         /// <param name="procedureName">Nome da procedure</param>
         /// <param name="handler">Método de conversão de linha da tabela em entidade</param>
-        /// <param name="parameters">Instancia de uma classe que terá suas propriedades refletidas como parâmetros da procedure (exceto propriedades marcadas com CampoNaoPersistivelAttribute)
+        /// <param name="parameters">Instancia de uma classe que terá suas propriedades refletidas como parâmetros da procedure (exceto propriedades marcadas com CampoNaoPersistivelAttribute)</param>
         /// <returns>Coleção de objetos da entidade corrente</returns>
         protected IEnumerable<T> ExecuteReader(string procedureName, Func<IDataReader, T> handler, object parameters)
         {
-            Dictionary<String, Object> dictionary = ObjectToDictionary(parameters);
+            var dictionary = ObjectToDictionary(parameters);
             return ExecuteReader(procedureName, handler, dictionary);
         }
 
@@ -181,31 +180,31 @@ namespace Carubbi.DAL
         /// </summary>
         /// <param name="parameters">Instancia com as propriedades a serem transformadas em dicionário</param>
         /// <returns>Dicionário de parâmetros (Nome e valor)</returns>
-        private static Dictionary<String, Object> ObjectToDictionary(object parameters)
+        private static Dictionary<string, object> ObjectToDictionary(object parameters)
         {
-            Dictionary<String, Object> dictionary = new Dictionary<string, object>();
+            var dictionary = new Dictionary<string, object>();
 
-            if (parameters == null)
+            switch (parameters)
             {
-                return dictionary;
+                case null:
+                    return dictionary;
+                case Dictionary<string, object> _:
+                    dictionary = (Dictionary<string, object>)parameters;
+                    break;
+                default:
+                    var parametersType = parameters.GetType();
+                    var properties = parametersType.GetProperties().Where(p => !p.GetCustomAttributes(typeof(CampoNaoPersistivelAttribute), true).Any());
+                    foreach (var item in properties)
+                    {
+                        //if (item.GetValue(parameters, null) != null)
+                        //{
+                        dictionary.Add(item.Name, item.GetValue(parameters, null));
+                        //}
+                    }
+
+                    break;
             }
 
-            if (parameters is Dictionary<string, Object>)
-            {
-                dictionary = (Dictionary<string, Object>)parameters;
-            }
-            else
-            {
-                var parametersType = parameters.GetType();
-                var properties = parametersType.GetProperties().Where(p => p.GetCustomAttributes(typeof(CampoNaoPersistivelAttribute), true).Count() == 0);
-                foreach (var item in properties)
-                {
-                    //if (item.GetValue(parameters, null) != null)
-                    //{
-                    dictionary.Add(item.Name, item.GetValue(parameters, null));
-                    //}
-                }
-            }
             return dictionary;
         }
 
@@ -214,12 +213,12 @@ namespace Carubbi.DAL
         /// </summary>
         /// <param name="procedureName">Nome da procedure</param>
         /// <param name="handler">Método de conversão de linha da tabela em entidade</param>
-        /// <param name="parameters">Dicionário contendo os nomes das propriedades e valores a serem passados como parâmetros
+        /// <param name="parameters">Dicionário contendo os nomes das propriedades e valores a serem passados como parâmetros</param>
         /// <returns>Coleção de objetos da entidade corrente</returns>
-        protected IEnumerable<T> ExecuteReader(string procedureName, Func<IDataReader, T> handler, Dictionary<String, object> parameters)
+        protected IEnumerable<T> ExecuteReader(string procedureName, Func<IDataReader, T> handler, Dictionary<string, object> parameters)
         {
 
-            List<T> list = new List<T>();
+            var list = new List<T>();
             PrepareCommand(procedureName, parameters);
 
             try
@@ -230,22 +229,22 @@ namespace Carubbi.DAL
                 Command.Connection = _unitOfWork.Connection;
                 Command.Transaction = _unitOfWork.Transaction;
                 DataReader = Command.ExecuteReader();
-
+                var e = new ItemLoadedEventArgs();
                 while (DataReader.Read())
                 {
-                    list.Add(handler(DataReader));
-                    if (ItemLoaded != null)
+                    if (e.Skip)
                     {
-                        var e = new ItemLoadedEventArgs();
-                        ItemLoaded(this, e);
-                        if (e.Cancel)
-                        {
-                            break;
-                        }
-                        else if (e.Skip)
-                        {
-                            continue;
-                        }
+                        e.Skip = false;
+                        continue;
+                    }
+
+                    list.Add(handler(DataReader));
+                    if (ItemLoaded == null) continue;
+                    e = new ItemLoadedEventArgs();
+                    ItemLoaded(this, e);
+                    if (e.Cancel)
+                    {
+                        break;
                     }
                 }
                
@@ -254,8 +253,7 @@ namespace Carubbi.DAL
             catch
             {
                 ReleaseDatabaseObjects();
-                if (_unitOfWork != null)
-                _unitOfWork.Rollback();
+                _unitOfWork?.Rollback();
                 throw;
             }
             finally
@@ -283,11 +281,9 @@ namespace Carubbi.DAL
                 DataReader = null;
             }
 
-            if (Command != null)
-            {
-                Command.Dispose();
-                Command = null;
-            }
+            if (Command == null) return;
+            Command.Dispose();
+            Command = null;
         }
 
         /// <summary>
@@ -297,7 +293,7 @@ namespace Carubbi.DAL
         /// <param name="parameters">Parâmetros (Nome da Propriedade/Valor) sem aplicar as regras de convenção</param>
         private void PrepareCommand(string procedureName, Dictionary<String, object> parameters)
         {
-            IDAOFactory factory = ImplementationResolver.ResolveSingleton<IDAOFactory>();
+            var factory = ImplementationResolver.ResolveSingleton<IDAOFactory>();
             Command = (factory ?? DAOFactory.GetInstance()).CreateCommand();
             Command.CommandType = CommandType.StoredProcedure;
             Command.CommandText = procedureName;
@@ -307,20 +303,20 @@ namespace Carubbi.DAL
             {
                 if (item.Value != null)
                 {
-                    if (item.Value is DateTime)
+                    if (item.Value is DateTime time)
                     {
-                        if (((DateTime)item.Value) < SqlDateTime.MinValue.Value)
+                        if (time < SqlDateTime.MinValue.Value)
                         {
-                            mi.Invoke(Command.Parameters, new object[] { string.Concat(DataBaseConventions.InputParametersPrefix, item.Key), SqlDateTime.MinValue.Value });
+                            mi?.Invoke(Command.Parameters, new object[] { string.Concat(DataBaseConventions.InputParametersPrefix, item.Key), SqlDateTime.MinValue.Value });
                             continue;
                         }
                     }
 
-                    mi.Invoke(Command.Parameters, new object[] { string.Concat(DataBaseConventions.InputParametersPrefix, item.Key), item.Value });
+                    mi?.Invoke(Command.Parameters, new object[] { string.Concat(DataBaseConventions.InputParametersPrefix, item.Key), item.Value });
                 }
                 else
                 {
-                    mi.Invoke(Command.Parameters, new object[] { string.Concat(DataBaseConventions.InputParametersPrefix, item.Key), DBNull.Value });
+                    mi?.Invoke(Command.Parameters, new object[] { string.Concat(DataBaseConventions.InputParametersPrefix, item.Key), DBNull.Value });
                 }
             }
         }
@@ -392,7 +388,7 @@ namespace Carubbi.DAL
         /// <returns>Resultado numérico da procedure</returns>
         private int ExecuteNonQuery(string procedureName, Dictionary<string, object> parameters)
         {
-            int result = 0;
+            var result = 0;
             PrepareCommand(procedureName, parameters);
 
             try
@@ -411,8 +407,7 @@ namespace Carubbi.DAL
             catch
             {
                 ReleaseDatabaseObjects();
-                if (_unitOfWork != null)
-                _unitOfWork.Rollback();
+                _unitOfWork?.Rollback();
                 throw;
             }
             finally
@@ -481,7 +476,7 @@ namespace Carubbi.DAL
         /// <returns>Instancia totalmente preenchida a partir do banco de dados</returns>
         public virtual T Obter(T entity)
         {
-            T obj = Activator.CreateInstance<T>();
+            T obj;
             obj = ExecuteReader(string.Format("{2}.{1}{0}_OBTER", entityNameConvention(typeof(T).Name), DataBaseConventions.StoredProcedurePrefix, DataBaseConventions.SchemaName), ObterCamposChave(entity)).FirstOrDefault();
             return obj;
         }
@@ -501,11 +496,9 @@ namespace Carubbi.DAL
             ExecuteReader(string.Format("{2}.{1}{0}_SALVAR", entityNameConvention(typeof(T).Name), DataBaseConventions.StoredProcedurePrefix, DataBaseConventions.SchemaName),
             dr =>
             {
-                if (propriedadesChave.Count == 1)
-                {
-                    var pi = entity.GetType().GetProperty(propriedadesChave.Keys.First());
-                    pi.SetValue(entity, dr[0], null);
-                }
+                if (propriedadesChave.Count != 1) return entity;
+                var pi = entity.GetType().GetProperty(propriedadesChave.Keys.First());
+                pi?.SetValue(entity, dr[0], null);
                 return entity;
             }
                 , entity);
@@ -529,7 +522,7 @@ namespace Carubbi.DAL
             }
             catch (DbException)
             {
-                throw new ApplicationException(string.Format("Não foi possível excluir este(a) {0} pois existem referências vinculadas à este registro", entityNameConvention(typeof(T).Name).ToLower()));
+                throw new ApplicationException($"Não foi possível excluir este(a) {entityNameConvention(typeof(T).Name).ToLower()} pois existem referências vinculadas à este registro");
             }
 
         }

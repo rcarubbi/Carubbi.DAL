@@ -1,11 +1,8 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Data;
+﻿using Carubbi.DAL.Interfaces;
+using Carubbi.ServiceLocator;
+using System;
 using System.Configuration;
-using Carubbi.Utils.IoC;
-using Carubbi.DAL.Interfaces;
+using System.Data;
 
 namespace Carubbi.DAL
 {
@@ -36,10 +33,10 @@ namespace Carubbi.DAL
         /// <returns></returns>
         protected IDbConnection GetConnection()
         {
-            IDbConnection connection = null;
+            IDbConnection connection;
             if (Connection == null)
             {
-                IDAOFactory factory = ImplementationResolver.ResolveSingleton<IDAOFactory>();
+                var factory = ImplementationResolver.ResolveSingleton<IDAOFactory>();
                 connection = (factory ?? DAOFactory.GetInstance()).CreateConnection();
             }
             else
@@ -89,12 +86,10 @@ namespace Carubbi.DAL
                 _connection.Close();
             }
 
-            if (_connection != null)
-            {
-                _connection.Dispose();
-                _connection = null;
-             
-            }
+            if (_connection == null) return;
+
+            _connection.Dispose();
+            _connection = null;
         }
 
         private IDbConnection _connection;
@@ -104,10 +99,7 @@ namespace Carubbi.DAL
         /// </summary>
         internal IDbConnection Connection
         {
-            get
-            {
-                return _connection;
-            }
+            get => _connection;
             set
             {
                 if (_connection != null)
@@ -131,7 +123,6 @@ namespace Carubbi.DAL
 
         #endregion
 
-
         /// <summary>
         /// Cancela as operações pendentes na transação corrente
         /// </summary>
@@ -146,18 +137,15 @@ namespace Carubbi.DAL
             ReleaseConnection();
         }
 
-
         /// <summary>
         /// Commita as operações pendentes
         /// </summary>
         internal void Commit()
         {
-            if (Transaction != null)
-            {
-                Transaction.Commit();
-                Transaction.Dispose();
-                Transaction = null;
-            }
+            if (Transaction == null) return;
+            Transaction.Commit();
+            Transaction.Dispose();
+            Transaction = null;
         }
     }
 }

@@ -1,6 +1,6 @@
-﻿using System.Data;
-using Carubbi.Utils.IoC;
-using Carubbi.DAL.Interfaces;
+﻿using Carubbi.DAL.Interfaces;
+using Carubbi.ServiceLocator;
+using System.Data;
 
 namespace Carubbi.DAL
 {
@@ -44,14 +44,12 @@ namespace Carubbi.DAL
         /// <returns></returns>
         public static IDAOFactory GetInstance()
         {
-            if (_instance == null)
+            if (_instance != null) return _instance;
+            lock (_locker)
             {
-                lock (_locker)
+                if (_instance == null)
                 {
-                    if (_instance == null)
-                    {
-                        _instance = new DAOFactory();
-                    }
+                    _instance = new DAOFactory();
                 }
             }
             return _instance;

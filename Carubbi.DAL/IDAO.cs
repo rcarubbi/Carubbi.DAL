@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Data;
 
 namespace Carubbi.DAL
 {
@@ -17,10 +16,15 @@ namespace Carubbi.DAL
         UnitOfWork UnitOfWork { get; set; }
        
         event EventHandler<ItemLoadedEventArgs> ItemLoaded;
+
         IEnumerable<T> Listar();
+
         IEnumerable<T> Listar<TFilter>(TFilter filtro);
+
         T Obter(T entity);
+
         T Salvar(T entity);
+
         int Excluir(T entity);
       
     }
