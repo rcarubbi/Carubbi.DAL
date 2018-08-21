@@ -121,10 +121,6 @@
       <Project>{d7f53be8-cb17-4ae8-b60b-363d365d02d1}</Project>
       <Name>Carubbi.DAL.Interfaces</Name>
     </ProjectReference>
-    <ProjectReference Include="..\Carubbi.Utils\Carubbi.Utils.csproj">
-      <Project>{b24443c4-5f13-4747-863a-146dc7040561}</Project>
-      <Name>Carubbi.Utils</Name>
-    </ProjectReference>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <PropertyGroup>
