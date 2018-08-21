@@ -1,26 +1,25 @@
-﻿using Carubbi.DAL.Interfaces;
+﻿using System.Data;
+using Carubbi.DAL.Interfaces;
 using Carubbi.ServiceLocator;
-using System.Data;
 
 namespace Carubbi.DAL
 {
     /// <summary>
-    /// Padrão Fábrica responsável pela criação do Objeto DAO - Implementação Padrão
+    ///     Padrão Fábrica responsável pela criação do Objeto DAO - Implementação Padrão
     /// </summary>
     public class DAOFactory : IDAOFactory
     {
+        private static volatile DAOFactory _instance;
+
+        private static volatile object _locker = new object();
+
         private DAOFactory()
         {
-
         }
-
-        private static volatile DAOFactory _instance;
-       
-        private static volatile object _locker = new object();
 
 
         /// <summary>
-        /// Criação do comando a partir do arquivo de configurações de implementação;
+        ///     Criação do comando a partir do arquivo de configurações de implementação;
         /// </summary>
         /// <returns></returns>
         public IDbCommand CreateCommand()
@@ -30,7 +29,7 @@ namespace Carubbi.DAL
 
 
         /// <summary>
-        /// Criação da classe de conexão a partir do arquivo de configurações de implementação
+        ///     Criação da classe de conexão a partir do arquivo de configurações de implementação
         /// </summary>
         /// <returns></returns>
         public IDbConnection CreateConnection()
@@ -39,7 +38,7 @@ namespace Carubbi.DAL
         }
 
         /// <summary>
-        /// Recupera a instância singleton da Fábrica
+        ///     Recupera a instância singleton da Fábrica
         /// </summary>
         /// <returns></returns>
         public static IDAOFactory GetInstance()
@@ -47,13 +46,10 @@ namespace Carubbi.DAL
             if (_instance != null) return _instance;
             lock (_locker)
             {
-                if (_instance == null)
-                {
-                    _instance = new DAOFactory();
-                }
+                if (_instance == null) _instance = new DAOFactory();
             }
-            return _instance;
 
+            return _instance;
         }
     }
 }
